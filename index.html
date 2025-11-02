@@ -2,8 +2,8 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>Bản đồ của bé Cua 107</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<title>Bản đồ của Bé Cua 107</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;700&display=swap" rel="stylesheet">
 <style>
   html,body{
@@ -11,13 +11,14 @@
     font-family:'Nunito',sans-serif;
     background:#000;overflow:hidden;color:#fff;
     touch-action:manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
 
   body::before{
     content:"";
     position:fixed;inset:0;
     background:url("cua.png") center/cover no-repeat;
-    filter:brightness(0.3);
+    filter:brightness(0.35);
     z-index:0;
   }
 
@@ -44,7 +45,7 @@
     opacity:0;transition:opacity .3s,transform .3s;
     z-index:5;pointer-events:none;
     max-width:85%;text-align:center;line-height:1.4;
-    font-size:1rem;
+    font-size:0.95rem;
   }
   .message.show{opacity:1;transform:translate(-50%,-50%) scale(1.04)}
 
@@ -58,7 +59,7 @@
   .warn{
     position:fixed;right:12px;top:12px;
     background:rgba(255,90,90,0.12);color:#ffd6d6;
-    padding:8px 12px;border-radius:8px;font-size:0.9rem;
+    padding:8px 12px;border-radius:8px;font-size:0.85rem;
     z-index:6;display:none
   }
   .warn.show{display:block}
@@ -66,7 +67,7 @@
   #musicBtn{
     position:fixed;top:14px;left:14px;z-index:7;
     background:rgba(255,255,255,0.12);border:none;
-    color:#fff;font-size:0.95rem;padding:8px 14px;
+    color:#fff;font-size:0.9rem;padding:8px 14px;
     border-radius:12px;cursor:pointer;
     backdrop-filter:blur(5px);transition:background .3s;
   }
@@ -106,17 +107,16 @@ let scaledStars = [], revealed = [], connections = [], twinkles = [];
 let starImg = null, starImgLoaded = false;
 let starSizeDefault = 38, animationId = null, lastTime = 0;
 let musicPlaying = false;
-let animLines = [];
 let glowingStars = [];
 
 /* ---------- Nhạc ---------- */
 window.addEventListener('load', () => {
-  // Auto play ở chế độ mute (bị chặn ít hơn)
+  // Autoplay mute nhẹ
   music.volume = 0;
   music.play().then(() => {
     console.log("Autoplay mute thành công");
   }).catch(() => {
-    console.log("Autoplay bị chặn, đợi user click");
+    console.log("Autoplay bị chặn, chờ tương tác");
   });
 });
 
@@ -125,7 +125,7 @@ document.addEventListener('click', () => {
   if (!firstInteraction) {
     firstInteraction = true;
     if (music.paused) music.play();
-    // Tăng âm lượng dần (fade-in)
+    // Fade-in âm thanh
     let vol = 0;
     const fade = setInterval(() => {
       vol += 0.05;
@@ -141,8 +141,9 @@ musicBtn.addEventListener('click', () => {
   if (!musicPlaying) {
     music.play().then(() => {
       musicPlaying = true;
+      music.volume = 1;
       musicBtn.textContent = "🔇 Tắt nhạc";
-    }).catch(() => alert("Nhấn lần nữa để phát nhạc 🎶"));
+    }).catch(()=>alert("Nhấn lần nữa để phát nhạc 🎶"));
   } else {
     music.pause();
     musicPlaying = false;
@@ -273,7 +274,7 @@ function showTypingMessage(text){
       msgTimer=setTimeout(type, typingSpeed);
     }else{
       clearTimeout(msgTimer);
-      msgTimer=setTimeout(()=>msgBox.classList.remove('show'),3000);
+      msgTimer=setTimeout(()=>msgBox.classList.remove('show'),3500);
     }
   };
   type();
