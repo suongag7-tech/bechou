@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>Bản đồ của bé Cua 107</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+  html,body{
+    height:100%;margin:0;
+    font-family:'Nunito',sans-serif;
+    background:#000;overflow:hidden;color:#fff;
+    touch-action:manipulation;
+  }
+
+  body::before{
+    content:"";
+    position:fixed;inset:0;
+    background:url("cua.png") center/cover no-repeat;
+    filter:brightness(0.3);
+    z-index:0;
+  }
+
+  .sky-bg{
+    position:fixed;inset:0;pointer-events:none;z-index:1;
+    background-image:
+      radial-gradient(circle at 20% 20%, rgba(255,255,255,0.05) 0 1px, transparent 1px),
+      radial-gradient(circle at 80% 70%, rgba(255,255,255,0.04) 0 1px, transparent 1px);
+  }
+
+  canvas{
+    position:fixed;top:0;left:0;width:100%;height:100%;
+    z-index:2;display:block;touch-action:none;
+  }
+
+  .message{
+    position:fixed;left:50%;top:50%;
+    transform:translate(-50%,-50%);
+    background:rgba(8,12,30,0.75);
+    padding:12px 18px;
+    border-radius:14px;
+    backdrop-filter:blur(8px);
+    box-shadow:0 6px 25px rgba(2,6,14,0.5);
+    opacity:0;transition:opacity .3s,transform .3s;
+    z-index:5;pointer-events:none;
+    max-width:85%;text-align:center;line-height:1.4;
+    font-size:1rem;
+  }
+  .message.show{opacity:1;transform:translate(-50%,-50%) scale(1.04)}
+
+  .hint{
+    position:fixed;left:12px;bottom:12px;
+    color:rgba(255,255,255,0.9);
+    z-index:6;background:rgba(0,0,0,0.25);
+    padding:8px 12px;border-radius:10px;font-size:0.9rem;
+  }
+
+  .warn{
+    position:fixed;right:12px;top:12px;
+    background:rgba(255,90,90,0.12);color:#ffd6d6;
+    padding:8px 12px;border-radius:8px;font-size:0.9rem;
+    z-index:6;display:none
+  }
+  .warn.show{display:block}
+
+  #musicBtn{
+    position:fixed;top:14px;left:14px;z-index:7;
+    background:rgba(255,255,255,0.12);border:none;
+    color:#fff;font-size:0.95rem;padding:8px 14px;
+    border-radius:12px;cursor:pointer;
+    backdrop-filter:blur(5px);transition:background .3s;
+  }
+  #musicBtn:hover{background:rgba(255,255,255,0.25)}
+</style>
+</head>
+<body>
+  <div class="sky-bg"></div>
+  <canvas id="starCanvas"></canvas>
+  <div id="messageBox" class="message"></div>
+  <div class="hint">✨ Chou Chou nhấn vào ngôi sao nha</div>
+  <div id="warn" class="warn">Không tải được star.png — đang dùng fallback chấm tròn.</div>
+  <button id="musicBtn">🎵 Phát nhạc</button>
+  <audio id="bgMusic" src="music.mp3" loop preload="auto"></audio>
+
+<script>
+const baseWidth = 1100;
+const baseStars = [
+  {x:160, y:300, msg:"Under your spell 🌙"},
+  {x:320, y:260, msg:"Hôm nay Chou Chou có mệt honggg ?"},
+  {x:480, y:320, msg:"Hôm nay Chou Chou làm giỏi lắm, để người da trưởng thưởng cho bé Chou một cái ôm nhaaa🫂"}, 
+  {x:620, y:280, msg:"Mong là dù chị có một ngày vui hay không vui, cũng có thể kể với em được hong ?. Em không giỏi an ủi đâu, nhưng em thật lòng muốn lắng nghe. ✨"},
+  {x:760, y:350, msg:"Khi nào Chou Chou cần bổ sung 'vitamin u' thì hãy gọi cho số này nha 0949801019 🐰 sẽ lập tức có mặt "},
+  {x:900, y:420, msg:"Em không giỏi nói mấy lời hoa lá nhưng em có thể dành sự chân thành của mình và mong rằng những tia nắng nhỏ sẽ xoa dịu tâm hồn chị 💕 "}
+];
+
+const STAR_IMAGE_FILENAME = "star.png";
+const canvas = document.getElementById('starCanvas');
+const ctx = canvas.getContext('2d');
+const msgBox = document.getElementById('messageBox');
+const warnEl = document.getElementById('warn');
+const music = document.getElementById('bgMusic');
+const musicBtn = document.getElementById('musicBtn');
+
+let dpr = Math.max(window.devicePixelRatio || 1, 1);
+let scaledStars = [], revealed = [], connections = [], twinkles = [];
+let starImg = null, starImgLoaded = false;
+let starSizeDefault = 38, animationId = null, lastTime = 0;
+let musicPlaying = false;
+let animLines = [];
+let glowingStars = [];
+
+/* ---------- Nhạc ---------- */
+window.addEventListener('load', () => {
+  // Auto play ở chế độ mute (bị chặn ít hơn)
+  music.volume = 0;
+  music.play().then(() => {
+    console.log("Autoplay mute thành công");
+  }).catch(() => {
+    console.log("Autoplay bị chặn, đợi user click");
+  });
+});
+
+let firstInteraction = false;
+document.addEventListener('click', () => {
+  if (!firstInteraction) {
+    firstInteraction = true;
+    if (music.paused) music.play();
+    // Tăng âm lượng dần (fade-in)
+    let vol = 0;
+    const fade = setInterval(() => {
+      vol += 0.05;
+      music.volume = Math.min(vol, 1);
+      if (vol >= 1) clearInterval(fade);
+    }, 150);
+    musicPlaying = true;
+    musicBtn.textContent = "🔇 Tắt nhạc";
+  }
+}, { once: true });
+
+musicBtn.addEventListener('click', () => {
+  if (!musicPlaying) {
+    music.play().then(() => {
+      musicPlaying = true;
+      musicBtn.textContent = "🔇 Tắt nhạc";
+    }).catch(() => alert("Nhấn lần nữa để phát nhạc 🎶"));
+  } else {
+    music.pause();
+    musicPlaying = false;
+    musicBtn.textContent = "🎵 Phát nhạc";
+  }
+});
+
+/* ---------- Load ảnh sao ---------- */
+function loadStarImage(src, timeout = 4000) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('load error'));
+    img.src = src;
+    if (timeout) setTimeout(() => {
+      if (!img.complete) reject(new Error('timeout'));
+    }, timeout);
+  });
+}
+
+/* ---------- Canvas ---------- */
+function setCanvasSize() {
+  dpr = Math.max(window.devicePixelRatio || 1, 1);
+  const w = window.innerWidth, h = window.innerHeight;
+  canvas.style.width = w+'px';canvas.style.height = h+'px';
+  canvas.width = Math.round(w*dpr);canvas.height = Math.round(h*dpr);
+  ctx.setTransform(1,0,0,1,0,0);ctx.scale(dpr,dpr);
+}
+function computeScaledStars() {
+  const sx = window.innerWidth / baseWidth;
+  scaledStars = baseStars.map(s => ({x: s.x*sx, y: s.y*sx, msg: s.msg}));
+}
+function initTwinkles() {
+  twinkles = [];
+  const count = Math.max(30, Math.round((window.innerWidth*window.innerHeight)/120000));
+  for (let i=0;i<count;i++){
+    twinkles.push({x:Math.random()*window.innerWidth,y:Math.random()*window.innerHeight,
+      r:0.5+Math.random()*1.6,phase:Math.random()*Math.PI*2,speed:0.008+Math.random()*0.015});
+  }
+}
+
+/* ---------- Vẽ ---------- */
+function clearCanvas(){ ctx.clearRect(0,0,canvas.width/dpr,canvas.height/dpr); }
+function drawTwinkles(now){
+  for (let t of twinkles){
+    t.phase += t.speed * ((now - lastTime)*0.001);
+    const alpha = 0.15 + 0.6*(0.5+0.5*Math.sin(t.phase));
+    ctx.beginPath();ctx.fillStyle=`rgba(255,255,255,${alpha})`;
+    ctx.arc(t.x,t.y,t.r,0,Math.PI*2);ctx.fill();
+  }
+}
+function drawConnections(){
+  ctx.save();
+  ctx.lineWidth=1.3;
+  ctx.strokeStyle='rgba(180,210,255,0.9)';
+  ctx.globalCompositeOperation='lighter';
+  for (let l of connections) {
+    ctx.beginPath();
+    ctx.moveTo(l.start.x, l.start.y);
+    const prog = Math.min(1, l.progress);
+    const x = l.start.x + (l.end.x - l.start.x) * prog;
+    const y = l.start.y + (l.end.y - l.start.y) * prog;
+    ctx.lineTo(x,y);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawStars(){
+  for (let i=0;i<scaledStars.length;i++){
+    const s = scaledStars[i];
+    const glow = glowingStars.find(g=>g.index===i);
+    const sizeMult = glow ? 1 + 0.6*glow.strength : (revealed.includes(i)?1.25:1);
+    const size = starSizeDefault * sizeMult;
+    if (starImgLoaded) ctx.drawImage(starImg,s.x-size/2,s.y-size/2,size,size);
+    else {ctx.beginPath();ctx.fillStyle='rgba(255,245,200,0.95)';
+          ctx.arc(s.x,s.y,size/6,0,Math.PI*2);ctx.fill();}
+  }
+}
+
+/* ---------- Animation loop ---------- */
+function animate(now){
+  clearCanvas();
+  drawTwinkles(now);
+  drawConnections();
+  drawStars();
+  for (let l of connections) if (l.progress<1) l.progress += 0.02;
+  glowingStars = glowingStars.filter(g=>{
+    g.strength -= 0.05;
+    return g.strength>0;
+  });
+  lastTime=now;
+  animationId=requestAnimationFrame(animate);
+}
+
+/* ---------- Interaction ---------- */
+canvas.addEventListener('click', e=>{
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const threshold = Math.max(26, starSizeDefault*0.7);
+  for (let i=0;i<scaledStars.length;i++){
+    const s = scaledStars[i];
+    const dist = Math.hypot(mx - s.x, my - s.y);
+    if (dist <= threshold){
+      if (!revealed.includes(i)){
+        revealed.push(i);
+        glowingStars.push({index:i,strength:1});
+        if (revealed.length>1){
+          const a=scaledStars[revealed[revealed.length-2]], b=s;
+          connections.push({start:a,end:b,progress:0});
+        }
+        showTypingMessage(s.msg);
+      }
+      return;
+    }
+  }
+});
+
+/* ---------- Lời nhắn đánh máy ---------- */
+let msgTimer=null;
+function showTypingMessage(text){
+  msgBox.textContent="";
+  msgBox.classList.add('show');
+  let i=0;
+  const typingSpeed=40;
+  const type=()=>{
+    if(i<text.length){
+      msgBox.textContent += text[i++];
+      msgTimer=setTimeout(type, typingSpeed);
+    }else{
+      clearTimeout(msgTimer);
+      msgTimer=setTimeout(()=>msgBox.classList.remove('show'),3000);
+    }
+  };
+  type();
+}
+
+/* ---------- Khởi động ---------- */
+function startRendering(){
+  if(animationId) cancelAnimationFrame(animationId);
+  setCanvasSize();computeScaledStars();initTwinkles();
+  lastTime=performance.now();
+  animationId=requestAnimationFrame(animate);
+}
+
+(async function boot(){
+  try{
+    starImg=await loadStarImage(STAR_IMAGE_FILENAME,4000);
+    starImgLoaded=true;warnEl.classList.remove('show');
+  }catch(err){
+    warnEl.classList.add('show');starImgLoaded=false;starImg=null;
+  }finally{startRendering();}
+})();
+window.addEventListener('resize', ()=>startRendering());
+</script>
+</body>
+</html>
