@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
-<title>Bản đồ của Bé Cua 107</title>
+<title>Bản đồ của Bé Cua 107 </title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;700&display=swap" rel="stylesheet">
 <style>
   html,body{
@@ -111,13 +111,8 @@ let glowingStars = [];
 
 /* ---------- Nhạc ---------- */
 window.addEventListener('load', () => {
-  // Autoplay mute nhẹ
   music.volume = 0;
-  music.play().then(() => {
-    console.log("Autoplay mute thành công");
-  }).catch(() => {
-    console.log("Autoplay bị chặn, chờ tương tác");
-  });
+  music.play().then(()=>{}).catch(()=>{});
 });
 
 let firstInteraction = false;
@@ -125,7 +120,6 @@ document.addEventListener('click', () => {
   if (!firstInteraction) {
     firstInteraction = true;
     if (music.paused) music.play();
-    // Fade-in âm thanh
     let vol = 0;
     const fade = setInterval(() => {
       vol += 0.05;
@@ -172,10 +166,30 @@ function setCanvasSize() {
   canvas.width = Math.round(w*dpr);canvas.height = Math.round(h*dpr);
   ctx.setTransform(1,0,0,1,0,0);ctx.scale(dpr,dpr);
 }
+
+/* 🌟 Canh giữa chòm sao */
 function computeScaledStars() {
   const sx = window.innerWidth / baseWidth;
-  scaledStars = baseStars.map(s => ({x: s.x*sx, y: s.y*sx, msg: s.msg}));
+  let temp = baseStars.map(s => ({x: s.x * sx, y: s.y * sx, msg: s.msg}));
+
+  const minX = Math.min(...temp.map(s => s.x));
+  const maxX = Math.max(...temp.map(s => s.x));
+  const minY = Math.min(...temp.map(s => s.y));
+  const maxY = Math.max(...temp.map(s => s.y));
+
+  const clusterW = maxX - minX;
+  const clusterH = maxY - minY;
+
+  const offsetX = (window.innerWidth - clusterW) / 2 - minX;
+  const offsetY = (window.innerHeight - clusterH) / 2 - minY;
+
+  scaledStars = temp.map(s => ({
+    x: s.x + offsetX,
+    y: s.y + offsetY,
+    msg: s.msg
+  }));
 }
+
 function initTwinkles() {
   twinkles = [];
   const count = Math.max(30, Math.round((window.innerWidth*window.innerHeight)/120000));
